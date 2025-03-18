@@ -1,0 +1,172 @@
+#include <SoftwareSerial.h>
+#include <Servo.h>
+
+#define BT_RX 2   // HC-05 TX pin
+#define BT_TX 3   // HC-05 RX pin
+SoftwareSerial BTSerial(BT_RX, BT_TX); // RX, TX for Bluetooth
+
+// Servo and IR Sensor for Bin
+const int servoPin = 4; // Servo motor control pin
+const int irSensorPin = 13; // IR sensor output pin
+
+Servo myservo;
+const int servoMin = 120;
+const int servoMax = 0;
+const int servoIdle = 120;
+
+// Motor A
+const int ENA = 5; // PWM pin for Motor A
+const int IN1 = 6;  // IN1 pin for Motor A
+const int IN2 = 7;  // IN2 pin for Motor A
+#define s 170 //base speed
+#define t 160//turning speed
+
+// Motor B
+const int ENB = 11; // PWM pin for Motor B
+const int IN3 = 8;  // IN3 pin for Motor B
+const int IN4 = 9;  // IN4 pin for Motor B
+
+// IR Sensors
+const int IRSensorLeft = 12;   // Left IR sensor
+const int IRSensorRight = 10;  // Right IR sensor
+
+// Ultrasonic Sensor & Buzzer
+#define TRIG_PIN A0
+#define ECHO_PIN A1
+#define BUZZER_PIN A2
+
+bool bluetoothActive = false; // Tracks Bluetooth control state
+
+void setup() {
+  pinMode(ENA, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(ENB, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+  pinMode(IRSensorLeft, INPUT);
+  pinMode(IRSensorRight, INPUT);
+
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+
+  pinMode(irSensorPin, INPUT);
+  myservo.attach(servoPin);
+  myservo.write(servoIdle);
+
+  Serial.begin(9600);
+  BTSerial.begin(9600);
+}
+
+void loop() {
+  if (BTSerial.available()) {
+    char command = BTSerial.read();
+    bluetoothActive = true; // Bluetooth mode active
+    switch (command) {
+      case 'F': moveForward(); break;
+      case 'B': moveBackward(); break;
+      case 'R': turnRight(); break;
+      case 'L': turnLeft(); break;
+      case 'S': stopMotors(); break;
+      default: stopMotors(); break;
+    }
+  } else {
+    bluetoothActive = false; // Only reset flag if no Bluetooth command is available
+  }
+
+  if (!bluetoothActive) { // Line-following only if Bluetooth is inactive
+    bool leftSensor = digitalRead(IRSensorLeft);
+    bool rightSensor = digitalRead(IRSensorRight);
+
+    if (leftSensor == LOW && rightSensor == LOW) {
+      moveForward();
+    } else if (leftSensor == LOW && rightSensor == HIGH) {
+      turnRight();
+    } else if (leftSensor == HIGH && rightSensor == LOW) {
+      turnLeft();
+    } else {
+      stopMotors();
+    }
+  }
+
+  // Ultrasonic Sensor Logic
+  long duration, distance;
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  duration = pulseIn(ECHO_PIN, HIGH);
+  distance = (duration * 0.034) / 2;
+
+  if (distance > 0 && distance <= 20) {
+    digitalWrite(BUZZER_PIN, HIGH);
+  } else {
+    digitalWrite(BUZZER_PIN, LOW);
+  }
+
+  // IR Sensor and Servo Motor Logic for Bin
+  int irState = digitalRead(irSensorPin);
+  if (irState == HIGH) {
+    myservo.write(servoMax);
+    delay(1000);
+  } else {
+    myservo.write(servoIdle);
+    delay(5000);
+  }
+
+  delay(100); 
+}
+
+void moveForward() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  analogWrite(ENA, s);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENB, s);
+}
+
+void moveBackward() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  analogWrite(ENA, s);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  analogWrite(ENB, s);
+}
+
+void turnRight() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  analogWrite(ENA, t);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENB, t);
+}
+
+void turnLeft() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  analogWrite(ENA, t);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  analogWrite(ENB, t);
+}
+
+void stopMotors() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  analogWrite(ENA, 0);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENB, 0);
+}

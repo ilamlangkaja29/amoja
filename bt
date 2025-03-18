@@ -1,0 +1,102 @@
+#define BTSerial Serial  // Define Bluetooth Serial
+
+// Define motor control pins (L298N)
+const int ENA = 10;  // Speed control for Motor A (PWM)
+const int IN1 = 6;   // Motor A Input 1
+const int IN2 = 7;   // Motor A Input 2
+
+const int ENB = 5;   // Speed control for Motor B (PWM)
+const int IN3 = 8;   // Motor B Input 1
+const int IN4 = 9;   // Motor B Input 2
+
+int speedValue = 150;  // Default speed (0-255)
+
+void setup() {
+    // Set motor pins as OUTPUT
+    pinMode(ENA, OUTPUT);
+    pinMode(IN1, OUTPUT);
+    pinMode(IN2, OUTPUT);
+    pinMode(ENB, OUTPUT);
+    pinMode(IN3, OUTPUT);
+    pinMode(IN4, OUTPUT);
+
+    // Start Serial Communication for Bluetooth
+    Serial.begin(9600);
+    BTSerial.begin(9600);  // Default HC-05 baud rate
+
+    Serial.println("Bluetooth Controlled L298N Ready!");
+}
+
+void loop() {
+    if (BTSerial.available()) {  // Check if Bluetooth data is available
+        char command = BTSerial.read();
+        Serial.print("Received: ");
+        Serial.println(command);
+
+        // Process Bluetooth Command
+        switch (command) {
+            case 'F': moveForward(); break;
+            case 'B': moveBackward(); break;
+            case 'L': turnLeft(); break;
+            case 'R': turnRight(); break;
+            case 'S': stopMotors(); break;
+            default: Serial.println("Invalid Command!"); break;
+        }
+    }
+}
+
+// **Motor Control Functions**
+void moveForward() {
+    Serial.println("Moving Forward");
+    digitalWrite(IN1, HIGH);
+    digitalWrite(IN2, LOW);
+    analogWrite(ENA, speedValue);  
+
+    digitalWrite(IN3, HIGH);
+    digitalWrite(IN4, LOW);
+    analogWrite(ENB, speedValue);
+}
+
+void moveBackward() {
+    Serial.println("Moving Backward");
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, HIGH);
+    analogWrite(ENA, speedValue);
+
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, HIGH);
+    analogWrite(ENB, speedValue);
+}
+
+void turnLeft() {
+    Serial.println("Turning Left");
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, HIGH);
+    analogWrite(ENA, speedValue / 2);  
+
+    digitalWrite(IN3, HIGH);
+    digitalWrite(IN4, LOW);
+    analogWrite(ENB, speedValue);
+}
+
+void turnRight() {
+    Serial.println("Turning Right");
+    digitalWrite(IN1, HIGH);
+    digitalWrite(IN2, LOW);
+    analogWrite(ENA, speedValue);  
+
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, HIGH);
+    analogWrite(ENB, speedValue / 2);
+}
+
+void stopMotors() {
+    Serial.println("Stopping Motors");
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, LOW);
+    analogWrite(ENA, 0);  
+
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, LOW);
+    analogWrite(ENB, 0);
+}

@@ -1,0 +1,44 @@
+#include <Servo.h>
+
+#define IR_SENSOR_PIN 13   // IR Sensor Pin
+#define SERVO_PIN 4        // Servo Motor Pin
+
+Servo myServo;  // Create servo object
+
+unsigned long lastMotionTime = 0;  // Tracks the last motion time
+const unsigned long delayTime = 5000; // 5 seconds delay
+
+bool motionDetected = false;
+
+void setup() {
+    pinMode(IR_SENSOR_PIN, INPUT);  // IR Sensor as input
+    myServo.attach(SERVO_PIN);      // Attach the servo
+    myServo.write(0);               // Start servo at 0°
+    
+    Serial.begin(9600);             // Initialize Serial Monitor
+    Serial.println("System Ready");
+}
+
+void loop() {
+    // Read IR sensor value
+    bool irSensorState = digitalRead(IR_SENSOR_PIN);
+
+    // If motion is detected
+    if (irSensorState == LOW) {
+        if (!motionDetected) {
+            myServo.write(120);  // Move servo to 120°
+            Serial.println("Motion Detected! Servo moved to 120°");
+            motionDetected = true;
+        }
+        lastMotionTime = millis();  // Reset motion timer
+    }
+
+    // If no motion detected for 5 seconds
+    if (motionDetected && millis() - lastMotionTime >= delayTime) {
+        myServo.write(0);  // Move servo back to 0°
+        Serial.println("No motion for 5 seconds. Servo moved to 0°");
+        motionDetected = false;
+    }
+
+    delay(100);  // Short delay for stability
+}

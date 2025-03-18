@@ -1,0 +1,179 @@
+#include <SoftwareSerial.h>
+#include <Servo.h>
+#define BT_RX 2   // HC-05 TX pin
+#define BT_TX 3   // HC-05 RX pin
+SoftwareSerial BTSerial(BT_RX, BT_TX); // RX, TX for Bluetooth
+
+// Motor A
+const int ENA = 5; // PWM pin for Motor A
+const int IN1 = 6;  // IN1 pin for Motor A
+const int IN2 = 7;  // IN2 pin for Motor A
+#define s 180 //base speed
+#define t 170//turning speed
+
+// Motor B
+const int ENB = 11; // PWM pin for Motor B
+const int IN3 = 8;  // IN3 pin for Motor B
+const int IN4 = 9;  // IN4 pin for Motor B
+
+// IR Sensors
+const int IRSensorLeft = 12;   // Left IR sensor
+const int IRSensorRight = 10;  // Right IR sensor
+
+// Ultrasonic Sensor & Buzzer
+#define TRIG_PIN A0
+#define ECHO_PIN A1
+#define BUZZER_PIN A2
+
+// Servo Motor & IR Bin Sensor
+Servo myServo;
+#define SERVO_PIN 4
+#define IR_BIN_SENSOR 13
+unsigned long lastMotionTime = 0;
+
+void setup() {
+  // Set motor pins as outputs
+  pinMode(ENA, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(ENB, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+  // Set sensor pins as inputs
+  pinMode(IRSensorLeft, INPUT);
+  pinMode(IRSensorRight, INPUT);
+
+  // Ultrasonic Sensor & Buzzer
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+
+  // Servo Motor & IR Bin Sensor
+  myServo.attach(SERVO_PIN);
+  pinMode(IR_BIN_SENSOR, INPUT);
+
+  // Initialize serial communication for debugging and Bluetooth
+  Serial.begin(9600);
+  BTSerial.begin(9600);
+}
+
+void loop() {
+  if (BTSerial.available()) {
+    char command = BTSerial.read();
+    switch (command) {
+      case 'F': moveForward(); break;
+      case 'B': moveBackward(); break;
+      case 'R': turnRight(); break;
+      case 'L': turnLeft(); break;
+      case 'S': stopMotors(); break;
+      default: stopMotors(); break;
+    }
+  }
+
+  // Ultrasonic Sensor Logic
+  long duration, distance;
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  duration = pulseIn(ECHO_PIN, HIGH);
+  distance = (duration * 0.034) / 2;
+
+  if (distance > 0 && distance <= 20) {
+    digitalWrite(BUZZER_PIN, HIGH);
+  } else {
+    digitalWrite(BUZZER_PIN, LOW);
+  }
+
+// Servo Motor Logic
+if (digitalRead(IR_BIN_SENSOR) == LOW) {
+    myServo.write(120); // Motion detected - rotate servo to 0°
+    lastMotionTime = millis();
+}
+if (millis() - lastMotionTime >= 5000) {
+    myServo.write(0); // No motion for 5 seconds - rotate servo to 120°
+}
+
+
+  bool leftSensor = digitalRead(IRSensorLeft);
+  bool rightSensor = digitalRead(IRSensorRight);
+
+  // Print sensor values
+  Serial.print("Left Sensor: ");
+  Serial.print(leftSensor);
+  Serial.print(" | Right Sensor: ");
+  Serial.println(rightSensor);
+
+  // Forward movement
+  if (leftSensor == LOW && rightSensor == LOW) {
+    moveForward();
+  }
+  // Turn right
+  else if (leftSensor == LOW && rightSensor == HIGH) {
+    turnRight();
+  }
+  // Turn left
+  else if (leftSensor == HIGH && rightSensor == LOW) {
+    turnLeft();
+  }
+  // Stop
+  else {
+    stopMotors();
+  }
+
+  delay(100); // Add a short delay to make the print readable
+}
+
+void moveForward() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  analogWrite(ENA, s);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENB, s);
+}
+
+void moveBackward() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  analogWrite(ENA, s);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  analogWrite(ENB, s);
+}
+
+void turnRight() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  analogWrite(ENA, t);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENB, t);
+}
+
+void turnLeft() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  analogWrite(ENA, t);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  analogWrite(ENB, t);
+}
+
+void stopMotors() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  analogWrite(ENA, 0);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENB, 0);
+}
+
